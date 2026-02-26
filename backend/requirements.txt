@@ -9,4 +9,4 @@ python-dotenv
 pydantic[email]
 psycopg2-binary
 echo "python-jose[cryptography]"
-echo "bcrypt==4.0.1"
+echo "bcrypt==4.0.1"httpx
