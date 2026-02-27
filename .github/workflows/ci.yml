@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  # Run this workflow on every push to main
+  # and on every pull request targeting main
   push:
     branches: [main]
   pull_request:
@@ -8,16 +10,53 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # GitHub - fresh Ubuntu VM
+
+    services:
+      # Postgres container inside the CI VM
+      # Same pgvector image used locally via Docker Compose
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arcanum
+          POSTGRES_PASSWORD: arcanum
+          POSTGRES_DB: arcanum
+        ports:
+          - 5432:5432  # Expose Postgres on the standard port inside the VM
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          # Wait for Postgres to be ready before running any steps
+          # Without this, tests might start before the DB is accepting connections
+
+    env:
+      # GitHub Actions has no access to local .env file in CI
+      # asyncpg is the async driver FastAPI uses for queries
+      DATABASE_URL: postgresql+asyncpg://arcanum:arcanum@localhost:5432/arcanum
+      # psycopg2 is the sync driver Alembic uses for migrations
+      SYNC_DATABASE_URL: postgresql://arcanum:arcanum@localhost:5432/arcanum
+      # Fake secret key for CI - used to sign JWTs during testing
+      # Never use a real secret key here - file is public
+      SECRET_KEY: ci-test-secret-key
+
     steps:
+      # Step 1: Pull code from GitHub into the VM
       - uses: actions/checkout@v4
+
+      # Step 2: Install Python 3.11 on the VM because GitHub Actions runners are more stable on 3.11
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      # Step 3: Install all Python packages from requirements.txt
       - name: Install dependencies
         run: |
           cd backend
           pip install -r requirements.txt
+
+      # Step 4: Run pytest
       - name: Run tests
         run: |
           cd backend
