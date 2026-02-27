@@ -23,13 +23,13 @@ jobs:
           POSTGRES_DB: arcanum
         ports:
           - 5432:5432  # Expose Postgres on the standard port inside the VM
+        # Wait for Postgres to be ready
+        # Without this, tests might start before the DB is accepting connections
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-          # Wait for Postgres to be ready before running any steps
-          # Without this, tests might start before the DB is accepting connections
 
     env:
       # GitHub Actions has no access to local .env file in CI
