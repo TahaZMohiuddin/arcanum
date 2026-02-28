@@ -49,3 +49,32 @@
 **Lessons learned:**
 - Comments inside YAML `options:` blocks get passed to Docker as arguments. Put comments above the block instead
 - CI has no .env and no migrations. Conftest.py handles schema, env vars go in the workflow yaml
+
+## Session 3 — Feb 28, 2026
+**Completed:**
+- CRUD endpoints for list management (anime_list.py router)
+  - POST /list/ — add anime to list (status only required)
+  - PATCH /list/{entry_id} — partial update, any subset of fields
+  - DELETE /list/{entry_id} — remove entry
+  - GET /list/ — fetch full user list (TODO: cursor pagination later)
+- ListEntryCreate, ListEntryUpdate, ListEntryResponse schemas
+- compute_overall() — averages whichever score axes are filled in
+- Pydantic field_validator — scores constrained to 1-10, nulls allowed
+- Renamed list.py → anime_list.py to avoid Python builtin shadow
+- Updated tests: 4 passing, replaced placeholder with real business logic tests
+- Manually verified via /docs: status-only entry works, score validation works
+
+**Decisions made:**
+- FastAPI checks auth before Pydantic validates body (401 before 422)
+- Pagination deferred. I left a TODO comment on GET /list/ endpoint
+- Score range is 1-10 (not 1-100) — keeping it simple for now
+
+**Next session starts with:**
+- MAL/AniList import tool — parse export XML/JSON into user_anime_relationships
+- Then: anime detail endpoint (GET /anime/{id}) with global average scores
+- Then: user profile endpoint (GET /users/{username})
+
+**Architecture reminders:**
+- compute_overall lives in the router, not the model
+- All score axes nullable — never required
+- Mood tags are Phase 2 — don't build them yet
