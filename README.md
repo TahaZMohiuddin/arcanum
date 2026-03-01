@@ -1,21 +1,16 @@
 # Arcanum
 
-A social anime tracking platform built around taste discovery — not just list management.
-
-## The Problem with MAL and AniList
-Existing anime trackers treat your watch history as a list. Arcanum treats it as a
-taste fingerprint. Every anime you rate, tag, or track feeds a social graph that connects
-you to people who actually watch the same way you do.
+A social anime tracking platform built around taste discovery and tracking your weighted average of your favorite shows.
 
 ## What Makes It Different
 - **Multi-axis scoring** — rate story, art, sound, characters, and enjoyment separately.
-  Your overall score is computed from whichever axes you care about.
+  Your overall score is computed from whichever axes you decide to rate.
 - **Community mood tagging** — tag anime with how it felt ("2am watch", "so bad its good",
-  "peak fiction"). Tags aggregate into vibe-based discovery — browse by occasion, not genre.
+  "peak fiction"). Tags aggregate into vibe-based discovery.
 - **Taste matching** — pgvector cosine similarity computes compatibility between users
   based on their full scoring history. "You and @user are 91% compatible."
 - **Weighted social scores** — anime pages show what *your network* rated it,
-  not just a global average.
+  including a global average.
 - **Real-time presence** — see what your friends are watching right now.
 
 ## Tech Stack
@@ -32,10 +27,10 @@ you to people who actually watch the same way you do.
 ## Architecture Highlights
 - **pgvector** for taste vector similarity — each user's scoring history becomes
   a 512-dimension vector. Compatibility is a single SQL cosine distance query.
-- **Community folksonomy** with LLM auto-categorization — users tag freely,
+- **Community folksonomy** with LLM auto-categorization, users can tag freely,
   tags roll up to parent mood categories for chart aggregation silently.
 - **Flywheel design** — minimum user action (status + one mood tag) still feeds
-  vibe browsing, taste vectors, and social matching.
+  vibe browsing, taste vectors, and social matching. You don't have to just score to contribute!
 - **Schema-first** — Alembic migrations, nullable score axes, computed_overall
   recalculated on every update.
 
