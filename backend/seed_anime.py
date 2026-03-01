@@ -23,6 +23,7 @@ query ($page: Int, $perPage: Int) {
     }
     media(type: ANIME, sort: POPULARITY_DESC) {
       id
+      idMal
       title {
         romaji
         english
@@ -79,6 +80,7 @@ async def seed():
 
                     anime = Anime(
                         anilist_id=media["id"],
+                        mal_id=media.get("idMal"),
                         title=media["title"]["romaji"],
                         title_english=media["title"].get("english"),
                         synopsis=media.get("description"),

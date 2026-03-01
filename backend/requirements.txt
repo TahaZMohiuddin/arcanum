@@ -13,3 +13,4 @@ bcrypt==4.0.1
 httpx
 pytest
 python-multipart
+defusedxml

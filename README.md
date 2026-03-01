@@ -25,8 +25,7 @@ A social anime tracking platform built around taste discovery and tracking your 
 | Anime Data | AniList GraphQL API |
 
 ## Architecture Highlights
-- **pgvector** for taste vector similarity — each user's scoring history becomes
-  a 512-dimension vector. Compatibility is a single SQL cosine distance query.
+- **pgvector** Each user's scoring history becomes a vector. Compatibility is a single SQL cosine distance query.
 - **Community folksonomy** with LLM auto-categorization, users can tag freely,
   tags roll up to parent mood categories for chart aggregation silently.
 - **Flywheel design** — minimum user action (status + one mood tag) still feeds

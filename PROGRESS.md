@@ -78,3 +78,40 @@
 - compute_overall lives in the router, not the model
 - All score axes nullable — never required
 - Mood tags are Phase 2 — don't build them yet
+
+## Session 4 — Mar 1, 2026
+
+**Completed:**
+- mal_id column added to anime table via Alembic migration
+- Seed script updated to pull idMal from AniList GraphQL (idMal field)
+- 500 anime re-seeded with mal_id populated
+- MAL import tool (POST /import/mal)
+  - defusedxml for security (entity expansion attack prevention)
+  - Bulk queries with .in_(). 2 DB calls regardless of list size.
+  - MAL status → WatchStatus enum mapping
+  - Import summary response: imported, skipped, unmatched_count, unmatched_titles
+  - MAL export validation (root tag check)
+  - datetime import moved to module level (Opus feedback)
+  - TODO comment: score_source enum for distinguishing imported vs multi-axis scores
+- Validated against my own MAL export: 99 imported, 106 unmatched (expected), 0 errors
+
+**Decisions made:**
+- mal_id over title matching. Title matching breaks and will drive away power users or something.
+- defusedxml for any user-uploaded XML
+- computed_overall set directly from MAL single score on import (since MAL and AniList do not have multi-axis available)
+
+**Lessons learned:**
+- Always check DB state before debugging Alembic: `docker exec -it arcanum_db psql -U arcanum -d arcanum -c "\dt"`
+- If tables missing, run `alembic upgrade head` before anything else
+- Never rely on Base.metadata.create_all() for local dev
+- Locally need to re-authenticate after Docker volume resets for testing purposes
+
+**Next session starts with:**
+- Anime detail endpoint: GET /anime/{id} — title, synopsis, cover, global average scores
+- User profile endpoint: GET /users/{username} — list, stats, genre breakdown
+- Then Phase 1 is complete and I will assess readiness for Phase 2
+
+**Architecture reminders:**
+- Score axes are all nullable — computed_overall is only populated if axes exist or on import
+- mal_id on anime table is the import lookup key while id is the ID off AniList's API
+- Bulk pre-fetch pattern. Use .in_() before loops. Never query inside loops. Why am I saying this? Because I'm a lost junior dev.

@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth
-from app.routers import anime_list
+from app.routers import auth, anime_list, mal_import
 
 app = FastAPI(title="Arcanum API", version="0.1.0")
 
@@ -15,6 +14,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(anime_list.router)
+app.include_router(mal_import.router)
 
 @app.get("/")
 async def root():

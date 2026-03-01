@@ -21,6 +21,7 @@ class Anime(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     anilist_id = Column(Integer, unique=True, nullable=False, index=True)
+    mal_id = Column(Integer, nullable=True, index=True)
     title = Column(String(500), nullable=False)
     title_english = Column(String(500), nullable=True)
     synopsis = Column(Text, nullable=True)
