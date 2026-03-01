@@ -115,3 +115,47 @@
 - Score axes are all nullable — computed_overall is only populated if axes exist or on import
 - mal_id on anime table is the import lookup key while id is the ID off AniList's API
 - Bulk pre-fetch pattern. Use .in_() before loops. Never query inside loops. Why am I saying this? Because I'm a lost junior dev.
+
+## Session 4 continued — Mar 1, 2026
+
+**Completed:**
+- Anime detail endpoint: GET /anime/{anime_id}
+  - Returns title, synopsis, cover, genres, episode count, AniList average score
+  - arcanum_score: global average of computed_overall across all Arcanum users
+  - Public endpoint. No auth required
+- User profile endpoint: GET /users/{username}
+  - Returns stats, genre breakdown (top 10), score distribution (1-10)
+  - Public endpoint. No auth required
+- Proper nested response schemas: UserStats, GenreCount, UserProfileResponse
+  - No more loose `dict` types
+- TODO comment added: refactor status counts to SQL aggregations when list sizes grow
+
+**Decisions made:**
+- arcanum_score not global_arcanum_average. This is shorter, and the frontend will type it constantly
+- Genre breakdown stays Python (JSONB array is harder to aggregate in SQL)
+- Status counts and mean_score are Python loops for now. This is acceptable under 500 entries. We'll work on this later. Spending time optimizing Postgres with 0 users is like kind of a waste of time.
+
+**Phase 1 status: COMPLETE**
+- ✅ user_anime_relationships table + migration
+- ✅ CRUD endpoints with score validation
+- ✅ MAL import tool
+- ✅ CI/CD green
+- ✅ Anime detail endpoint
+- ✅ User profile endpoint with real taste data
+
+**Next session starts with Phase 2:**
+- Alembic migration: mood_tags + user_anime_mood_tags tables
+  - is_approved boolean (default true for seeded tags)
+  - is_suggested boolean (default false, marks LLM-generated suggestions)
+  - No category enum
+  - parent_mood_id self-referential FK (nullable, for chart rollup)
+- Hand-tag top 50 anime manually
+- LLM auto-suggest next 150 with is_suggested=true (This is still being debated but whateverrrrrrrr)
+- Next.js frontend scaffolding -- first pages: home, anime detail, user profile
+- Display threshold: 3+ user applications to graduate suggested → confirmed (query layer, not DB)
+
+**Architecture reminders:**
+- Suggested tags render with lighter visual treatment until 3+ users confirm them
+- No user-created tags at launch — curated vocabulary only
+- arcanum_score on anime detail page shows platform average vs AniList average
+- User profile stats page will eventually need SQL aggregations (TODO comment in users.py)

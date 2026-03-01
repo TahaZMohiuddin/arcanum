@@ -105,3 +105,44 @@ class ListEntryResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+class AnimeResponse(BaseModel):
+    id: UUID
+    anilist_id: int
+    mal_id: Optional[int]
+    title: str
+    title_english: Optional[str]
+    synopsis: Optional[str]
+    cover_url: Optional[str]
+    genres: Optional[list[str]]
+    episode_count: Optional[int]
+    average_score: Optional[float]
+    arcanum_score: Optional[float]  # Global average of computed_overall across all Arcanum users
+    season: Optional[str]
+    season_year: Optional[int]
+    cached_vibe_tags: Optional[dict]
+
+    model_config = {"from_attributes": True}
+
+
+class UserStats(BaseModel):
+    total: int
+    completed: int
+    watching: int
+    plan_to_watch: int
+    dropped: int
+    mean_score: Optional[float]
+
+
+class GenreCount(BaseModel):
+    genre: str
+    count: int
+
+
+class UserProfileResponse(BaseModel):
+    user_id: UUID
+    username: str
+    avatar_url: Optional[str]
+    stats: UserStats
+    genre_breakdown: list[GenreCount]
+    score_distribution: dict[str, int]
