@@ -1,9 +1,12 @@
-from sqlalchemy import Column, String, DateTime, Boolean, Integer, Text, ForeignKey, Enum as SQLAlchemyEnum
+from sqlalchemy import Column, String, DateTime, Boolean, Integer, Float, Text, ForeignKey, Enum as SQLAlchemyEnum, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from app.database import Base
 import uuid
 from datetime import datetime, timezone
 import enum
+
+# NOTE: This file uses the legacy Column() style throughout.
+# TODO: Migrate to SQLAlchemy 2.0 Mapped[] style in a future refactor session.
 
 class User(Base):
     __tablename__ = "users"
@@ -43,6 +46,7 @@ class WatchStatus(enum.Enum):
 
 class UserAnimeRelationship(Base):
     __tablename__ = "user_anime_relationships"
+    __table_args__ = (UniqueConstraint('user_id', 'anime_id'),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -61,7 +65,7 @@ class UserAnimeRelationship(Base):
     score_sound = Column(Integer, nullable=True)
     score_characters = Column(Integer, nullable=True)
     score_enjoyment = Column(Integer, nullable=True)
-    computed_overall = Column(Integer, nullable=True)
+    computed_overall = Column(Float, nullable=True)
 
     # Rewatch
     rewatch_count = Column(Integer, default=0)
@@ -74,3 +78,30 @@ class UserAnimeRelationship(Base):
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+class MoodTag(Base):
+    __tablename__ = "mood_tags"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # 100 chars is fine for curated vocabulary. If community proposals open up, revisit.
+    label = Column(String(100), unique=True, nullable=False)
+    slug = Column(String(100), unique=True, nullable=False)
+    # usage_count is maintained by pg_cron aggregation job. Do NOT increment in application code.
+    # Incrementing here would create race conditions under concurrent writes.
+    usage_count = Column(Integer, default=0)
+    is_approved = Column(Boolean, default=True)
+    is_suggested = Column(Boolean, default=False)
+    # Silent self-referential FK for chart rollup aggregation only.
+    # Never exposed during tagging. I.E. 'melancholy' rolls up to 'Emotional' parent.
+    parent_mood_id = Column(UUID(as_uuid=True), ForeignKey("mood_tags.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+class UserAnimeMoodTag(Base):
+    __tablename__ = "user_anime_mood_tags"
+
+    # Intentionally separate FKs to users and anime instead of to user_anime_relationships.
+    # A user can tag an anime without it being on their list. Keeps flywheel frictionless.
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    anime_id = Column(UUID(as_uuid=True), ForeignKey("anime.id", ondelete="CASCADE"), primary_key=True, index=True)
+    mood_tag_id = Column(UUID(as_uuid=True), ForeignKey("mood_tags.id", ondelete="CASCADE"), primary_key=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

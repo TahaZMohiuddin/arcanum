@@ -27,14 +27,15 @@ def compute_overall(
     sound: Optional[int],
     characters: Optional[int],
     enjoyment: Optional[int]
-) -> Optional[int]:
+) -> Optional[float]:
     """Average of whichever axes are filled in.
     Returns None if no axes are scored at all.
+    One decimal place preserved — 7.8 and 8.0 are meaningfully different for taste matching.
     """
     scores = [s for s in [story, art, sound, characters, enjoyment] if s is not None]
     if not scores:
         return None
-    return round(sum(scores) / len(scores))
+    return round(sum(scores) / len(scores), 1)
 
 @router.post("/", response_model=ListEntryResponse, status_code=201)
 async def add_to_list(
