@@ -1,8 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, anime_list, mal_import, anime, users, tags
+from contextlib import asynccontextmanager
+from app.scheduler import start_scheduler, scheduler
 
-app = FastAPI(title="Arcanum API", version="0.1.0")
+# Placement at top guarantees the cleanup happens at the right moment, even if the server crashes or gets a kill signal.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()
+    # Everything above yield runs when app starts up. Everything below yield runs when app shuts down.
+    yield
+    # APScheduler stops cleanly, no orphaned jobs
+    scheduler.shutdown()
+
+app = FastAPI(title="Arcanum API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
