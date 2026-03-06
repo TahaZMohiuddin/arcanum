@@ -159,3 +159,78 @@
 - No user-created tags at launch — curated vocabulary only
 - arcanum_score on anime detail page shows platform average vs AniList average
 - User profile stats page will eventually need SQL aggregations (TODO comment in users.py)
+
+## Session 5 — Mar 4-6, 2026
+
+**Completed:**
+- mood_tags + user_anime_mood_tags Alembic migration
+  - is_approved (bool, default true), is_suggested (bool, default false)
+  - parent_mood_id self-referential FK — silent, for chart rollup only, never exposed during tagging
+  - No category enum — vibe browse clusters are presentation layer, not DB constraints
+  - anime_id index on user_anime_mood_tags for efficient "all tags for this anime" queries
+  - ondelete CASCADE on user_id, anime_id, mood_tag_id FKs
+  - UniqueConstraint on (user_id, anime_id) in user_anime_relationships
+  - computed_overall changed from Integer to Float — preserves signal (7.8 vs 8.0 matters for taste matching)
+- 58 curated mood tags seeded (seed_mood_tags.py)
+  - Bulk fetch pattern — 1 query, not 60
+  - Idempotent — safe to rerun
+- Tagging endpoints (POST/DELETE /anime/{id}/tags, GET /anime/{id}/tags)
+  - Confirmed/suggested split in response — frontend never counts votes
+  - CONFIRMATION_THRESHOLD = 3 votes to graduate suggested → confirmed
+  - LLM-suggested tags graduate to confirmed at 3+ votes (is_suggested doesn't block graduation)
+  - 204 on DELETE, consistent with list entry delete
+  - TODO: LLM-suggested tags with zero votes won't surface in GET (HAVING count > 0 filters them). Needs union or separate query when LLM suggest is added.
+- GET /tags/ endpoint for typeahead
+  - Separate router (mood_tags.py) to avoid routing conflict with /anime/{id}/tags
+- APScheduler vibe tag aggregation job (scheduler.py)
+  - Runs every 4 hours
+  - Single bulk SELECT across all anime, Python grouping with defaultdict — no N+1
+  - Updates cached_vibe_tags JSONB on anime table
+  - Updates usage_count on mood_tags table
+  - usage_count is pg_cron/scheduler maintained — never increment in application code
+  - Lifespan context manager (FastAPI 0.93+ pattern, replaces deprecated @app.on_event)
+  - TODO Phase 4: presence TTL cleanup job lives here. DELETE FROM presence WHERE updated_at < now() - interval '30 minutes'. Frontend pings /presence every ~2 min while watching to keep record fresh.
+- Vibe browse endpoints (GET /vibe/, GET /vibe/{slug})
+  - 8 predefined clusters — presentation layer only, not stored in DB
+  - Bulk prefetch all tag IDs in one query before cluster loop
+  - Drill-down handles both cluster IDs and individual tag slugs
+  - top_tags reads from cached_vibe_tags JSONB — no extra join
+  - anilist_score named honestly (not arcanum_score — that requires join to user_anime_relationships)
+  - TODO: Cache entire GET /vibe/ response with 4hr TTL if browse page feels slow. Response only changes when aggregation job runs.
+- Validated full pipeline: tag applied → aggregation job → cache updated → vibe browse reads from cache
+
+**Decisions made:**
+- APScheduler over pg_cron locally. Migration path to pg_cron is clean — core logic is pure SQL.
+  APScheduler → pg_cron migration: extract SELECT/UPDATE into single UPDATE...FROM subquery,
+  schedule via SELECT cron.schedule(). Python grouping logic disappears. One SQL statement:
+  UPDATE anime SET cached_vibe_tags = (
+      SELECT jsonb_object_agg(slug, jsonb_build_object('label', label, 'count', cnt))
+      FROM (
+          SELECT mt.slug, mt.label, count(*) as cnt
+          FROM user_anime_mood_tags uamt
+          JOIN mood_tags mt ON mt.id = uamt.mood_tag_id
+          WHERE uamt.anime_id = anime.id
+          GROUP BY mt.slug, mt.label
+      ) sub
+  )
+  WHERE id IN (SELECT DISTINCT anime_id FROM user_anime_mood_tags);
+- LLM auto-categorization from artifact superseded by is_suggested approach — LLM suggests tags per anime, not categorizes user-created tags
+- /vibe is the default authenticated route in Next.js (post-login landing page)
+- Column() style throughout models.py — do not mix with Mapped[] style until full migration
+
+**Lessons learned:**
+- N+1 pattern keeps appearing. Rule: bulk fetch with .in_() before ANY loop. No DB calls inside loops. Ever.
+- Always paste models.py before writing migrations — autogenerate only detects what's in models
+- Pylance "could not be resolved" warnings are VS Code config, not real errors. Fix: Ctrl+Shift+P → Python: Select Interpreter → point to venv
+
+**Next session starts with:**
+- LLM auto-suggest job — needs Anthropic API key in .env
+- Next.js frontend scaffolding
+- Deploy to Vercel + Railway + Supabase — soft launch
+
+**Architecture reminders:**
+- cached_vibe_tags JSONB on anime table is the read cache for vibe browse — never join to mood_tags on browse queries
+- usage_count on mood_tags is scheduler-maintained only
+- Vibe browse clusters are defined in vibe.py VIBE_CLUSTERS — presentation layer, not DB
+- confirmed = vote_count >= 3, regardless of is_suggested. LLM tags graduate like any other.
+- parent_mood_id is for chart rollup aggregation only — never expose during tagging
