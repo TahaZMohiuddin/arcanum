@@ -13,27 +13,27 @@ VIBE_CLUSTERS = [
     {
         "id": "late-night",
         "label": "Late Night Watch",
-        "slugs": ["2am-watch", "dreamlike", "melancholy", "lonely", "quietly-devastating"],
+        "slugs": ["2am-watch", "dreamlike", "melancholy", "lonely", "quietly-devastating", "atmospheric", "cozy-but-dark", "philosophical"],
     },
     {
         "id": "watch-together",
         "label": "Watch With People",
-        "slugs": ["watch-with-friends", "hype-watch", "chaotic-energy", "so-bad-its-good", "binge-worthy"],
+        "slugs": ["watch-with-friends", "hype-watch", "chaotic-energy", "so-bad-its-good", "binge-worthy", "died-from-laughter", "turn-your-brain-off"],
     },
     {
         "id": "emotional",
         "label": "Prepare to Cry",
-        "slugs": ["good-cry", "emotionally-devastating", "youll-ugly-cry", "emotional-gut-punch-finale", "bittersweet"],
+        "slugs": ["good-cry", "emotionally-devastating", "youll-ugly-cry", "emotional-gut-punch-finale", "bittersweet", "im-not-okay-rn"],
     },
     {
         "id": "chill",
         "label": "Low Effort High Reward",
-        "slugs": ["cozy", "comfort-rewatch", "background-watch", "wholesome", "comfort-food-anime"],
+        "slugs": ["cozy", "comfort-rewatch", "background-watch", "wholesome", "comfort-food-anime", "cozy-but-dark"],
     },
     {
         "id": "prestige",
         "label": "Peak Fiction",
-        "slugs": ["peak-fiction", "certified-classic", "ahead-of-its-time", "rewarding-payoff", "sticks-the-landing"],
+        "slugs": ["peak-fiction", "certified-classic", "ahead-of-its-time", "rewarding-payoff", "sticks-the-landing", "damn-good-villain", "epic-scope"],
     },
     {
         "id": "hidden",
@@ -48,7 +48,7 @@ VIBE_CLUSTERS = [
     {
         "id": "aesthetic",
         "label": "Style & Vibes",
-        "slugs": ["visually-stunning", "soundtrack-carries-it", "soundtrack-youll-download", "vibes-over-plot", "dreamlike"],
+        "slugs": ["visually-stunning", "soundtrack-carries-it", "soundtrack-youll-download", "vibes-over-plot", "dreamlike", "atmospheric", "banger-oped"],
     },
 ]
 

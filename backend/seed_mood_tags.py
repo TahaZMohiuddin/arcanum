@@ -67,10 +67,9 @@ MOOD_TAGS = [
     "ahead of its time",
     "aged like wine",
     "guilty pleasure",
-    # Style (15)
+    # Style (14)
     "visually stunning",
     "soundtrack carries it",
-    "soundtrack you'll download",
     "found family",
     "character driven",
     "you'll ugly cry",
@@ -80,9 +79,19 @@ MOOD_TAGS = [
     "vibes over plot",
     "style over substance",
     "slow start worth it",
-    "anxiety-inducing",
+    "anxiety inducing",
     "quietly devastating",
     "nerve-wracking",
+    "atmospheric",
+    # New
+    "banger OP/ED",
+    "philosophical",
+    "damn good villain",
+    "I'm not okay rn",
+    "epic scope",
+    "cozy but dark",
+    "died from laughter",
+    "turn your brain off",
 ]
 
 async def seed():

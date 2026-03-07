@@ -219,9 +219,9 @@
 - Column() style throughout models.py — do not mix with Mapped[] style until full migration
 
 **Lessons learned:**
-- N+1 pattern keeps appearing. Rule: bulk fetch with .in_() before ANY loop. No DB calls inside loops. Ever.
+- Rule: bulk fetch with .in_() before ANY loop. No DB calls inside loops. Ever.
 - Always paste models.py before writing migrations — autogenerate only detects what's in models
-- Pylance "could not be resolved" warnings are VS Code config, not real errors. Fix: Ctrl+Shift+P → Python: Select Interpreter → point to venv
+- Pylance "could not be resolved" warnings are VS Code config, not real errors. Fix: Ctrl+Shift+P → Python: Select Interpreter → point to venv. Yes, I am actually this dumb.
 
 **Next session starts with:**
 - LLM auto-suggest job — needs Anthropic API key in .env

@@ -37,8 +37,8 @@ A social anime tracking platform built around taste discovery and tracking your 
 🚧 Active development — Phase 1 of 5 complete
 
 - ✅ Phase 0 — Foundation (FastAPI, Postgres, Auth, AniList seed)
-- 🔄 Phase 1 — Core list features (CRUD, scoring, import tool)
-- ⬜ Phase 2 — Mood tags + vibe browsing
+- ✅ Phase 1 — Core list features (CRUD, scoring, import tool)
+- 🔄 Phase 2 — Mood tags + vibe browsing
 - ⬜ Phase 3 — Social graph + taste matching
 - ⬜ Phase 4 — Real-time presence
 - ⬜ Phase 5 — LLM layer + public launch
