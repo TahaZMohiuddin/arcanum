@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 MIN_CONFIRMED_TAGS = 3  # Skip anime that already have 3+ confirmed community tags
-MAX_ANIME_PER_RUN = 5 # 5 is temporary # 150  # Process top 150 by popularity per run
+MAX_ANIME_PER_RUN = 150 # Process top 150 by popularity per run
 COMMIT_BATCH_SIZE = 25  # Commit every N anime to avoid 150 individual commits
 
 
