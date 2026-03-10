@@ -234,3 +234,67 @@
 - Vibe browse clusters are defined in vibe.py VIBE_CLUSTERS — presentation layer, not DB
 - confirmed = vote_count >= 3, regardless of is_suggested. LLM tags graduate like any other.
 - parent_mood_id is for chart rollup aggregation only — never expose during tagging
+
+## Session 6 — Mar 4-9, 2026
+
+**Completed:**
+- 8 new mood tags added (65 total): atmospheric, banger OP/ED, philosophical, damn good villain,
+  I'm not okay rn, epic scope, cozy but dark, died from laughter
+- System user created (seed_system_user.py)
+  - Deterministic UUID: 00000000-0000-0000-0000-000000000001
+  - is_active=False — cannot log in
+  - hashed_password="SYSTEM_ACCOUNT_NO_LOGIN" — intentionally uncrackable
+  - Idempotent seed script — safe to rerun across environments
+- constants.py — centralized SYSTEM_USER_ID and CONFIRMATION_THRESHOLD
+  - Both imported everywhere — no magic UUIDs scattered across files
+- LLM auto-suggest job (app/llm_suggest.py)
+  - Claude Haiku — cost efficient for 150 anime per run
+  - Picks from existing 65 curated tags only — not an open-ended generator
+  - Bulk prefetches: tag labels, anime needing suggestions, existing system suggestions
+  - Batch commits every 25 anime — not 150 individual commits
+  - Explicit tuple cast for duplicate check: {(row.anime_id, row.mood_tag_id) for row in ...}
+  - System user ID on UserAnimeMoodTag is the signal for LLM suggestions — MoodTag.is_suggested NOT modified
+  - asyncio.sleep(0.5) per anime for rate limiting
+  - Validated against 5 anime — tags accurate (FMA:B → peak fiction, philosophical; HxH → certified classic, epic scope)
+- Updated GET /anime/{id}/tags endpoint
+  - Distinguishes system votes from real votes using func.cast(user_id == SYSTEM_USER_ID, Integer)
+  - vote_count in response shows real community votes only — LLM votes invisible to users
+  - Tags with only system votes surface as suggested with vote_count=0 — correct behavior
+  - Removed outdated TODO comment — replaced with accurate explanation
+- APScheduler updated
+  - aggregate_vibe_tags: every 4 hours
+  - run_llm_suggest: every 24 hours (cost consideration)
+  - LLM suggestions picked up by aggregation job within 4 hours — no coordination needed
+- VIBE_CLUSTERS updated with 8 new tags across appropriate clusters
+- Note: slug for tag with '-' in label needs verification post-launch
+
+**Decisions made:**
+- is_suggested on MoodTag is reserved for future community proposal system
+  (user-proposed tags start as is_suggested=True until approved by moderators)
+  Currently unused — all 65 tags are hand-curated, defaults to False
+- System user votes excluded from confirmation threshold — LLM suggestions
+  don't count toward the 3-vote community threshold
+- LLM suggest runs daily not hourly — cost consideration, new anime added infrequently
+- Note for future development: vote_count in TagResponse shows real votes only.
+  Frontend should display "X community votes" not just "X votes" to avoid confusion
+  when system votes exist in DB but aren't shown.
+
+**Lessons learned:**
+- One file at a time when making multi-file changes — easier to track, fewer contradictions
+- Wait ~60 seconds before pasting LLM job output — API calls take time
+- psql pager (the ':' prompt) — use 'head -60' to avoid truncation
+
+**Phase 2 backend status: COMPLETE**
+- ✅ mood_tags + user_anime_mood_tags migration
+- ✅ 65 curated tags seeded
+- ✅ Tagging endpoints
+- ✅ APScheduler aggregation job
+- ✅ Vibe browse endpoints
+- ✅ LLM auto-suggest job
+- ✅ System user
+- ✅ constants.py
+
+**Next session starts with:**
+- Next.js frontend scaffolding (/vibe as default authenticated route)
+- Deploy to Vercel + Railway + Supabase after frontend is scaffolded — soft launch
+- Phase 2 will be fully complete after deploy

@@ -7,10 +7,10 @@ from app.routers.anime_list import get_current_user_id
 from pydantic import BaseModel
 from uuid import UUID
 from typing import Optional
+from sqlalchemy import select, func, Integer
+from app.constants import SYSTEM_USER_ID, CONFIRMATION_THRESHOLD
 
 router = APIRouter(prefix="/anime", tags=["tags"])
-
-CONFIRMATION_THRESHOLD = 3  # Votes needed to graduate from suggested → confirmed
 
 class TagResponse(BaseModel):
     id: UUID
@@ -32,8 +32,10 @@ async def get_anime_tags(
     anime_id: UUID,
     db: AsyncSession = Depends(get_db)
 ):
-    """Returns tags in two groups: confirmed (3+ votes) and suggested (below threshold).
-    Frontend uses this directly — no vote counting needed on the client side.
+    """Returns tags in two groups: confirmed (3+ real community votes) and suggested.
+    System user votes are excluded from the confirmation count — LLM suggestions
+    don't count toward the threshold. Tags with only system votes appear as suggested
+    with vote_count=0 (real votes only shown to users).
     """
     # Verify anime exists
     anime_result = await db.execute(select(Anime).where(Anime.id == anime_id))
@@ -44,7 +46,10 @@ async def get_anime_tags(
     vote_counts = await db.execute(
         select(
             MoodTag,
-            func.count(UserAnimeMoodTag.user_id).label("vote_count")
+            func.count(UserAnimeMoodTag.user_id).label("total_votes"),
+            func.sum(
+                func.cast(UserAnimeMoodTag.user_id == SYSTEM_USER_ID, Integer)
+            ).label("system_votes")
         )
         .outerjoin(UserAnimeMoodTag, (
             UserAnimeMoodTag.mood_tag_id == MoodTag.id) &
@@ -60,24 +65,27 @@ async def get_anime_tags(
     confirmed = []
     suggested = []
 
-    for tag, vote_count in rows:
+    for tag, total_votes, system_votes in rows:
+        system_votes = system_votes or 0
+        real_votes = total_votes - system_votes
+        is_confirmed = real_votes >= CONFIRMATION_THRESHOLD
+
         tag_data = TagResponse(
             id=tag.id,
             label=tag.label,
             slug=tag.slug,
-            vote_count=vote_count,
+            vote_count=real_votes,  # Show real community votes only
             is_suggested=tag.is_suggested,
-            confirmed=vote_count >= CONFIRMATION_THRESHOLD,
+            confirmed=is_confirmed,
         )
-        
-        if tag_data.confirmed:
+        if is_confirmed:
             confirmed.append(tag_data)
         else:
             suggested.append(tag_data)
 
-    # TODO: When LLM auto-suggest is added in Phase 2, this query won't surface
-    # is_suggested tags with zero user votes since HAVING count > 0 filters them out.
-    # Will need a union or separate query to include pre-suggested tags with no votes yet.
+    # Tags with only system (LLM) votes surface here as suggested with vote_count=0.
+    # HAVING count > 0 checks total_votes including system votes, so LLM suggestions
+    # are visible to the frontend with lighter styling until real users confirm them.
     return AnimeTagsResponse(confirmed=confirmed, suggested=suggested)
 
 

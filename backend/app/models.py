@@ -90,6 +90,9 @@ class MoodTag(Base):
     # Incrementing here would create race conditions under concurrent writes.
     usage_count = Column(Integer, default=0)
     is_approved = Column(Boolean, default=True)
+    # is_suggested: currently unused (all tags are hand-curated, defaults to False).
+    # Reserved for future community proposal system — user-proposed tags start as
+    # is_suggested=True until reviewed and approved by moderators.
     is_suggested = Column(Boolean, default=False)
     # Silent self-referential FK for chart rollup aggregation only.
     # Never exposed during tagging. I.E. 'melancholy' rolls up to 'Emotional' parent.

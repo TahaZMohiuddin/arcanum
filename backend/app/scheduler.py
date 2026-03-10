@@ -5,10 +5,10 @@ from app.database import AsyncSessionLocal
 from app.models import MoodTag, UserAnimeMoodTag, Anime
 from collections import defaultdict
 import logging
+from app.llm_suggest import run_llm_suggest
 
 # TODO: Consider migrating to Supabase pg_cron in production if APScheduler becomes a bottleneck
 # TODO: Add presence TTL cleanup job here in Phase 4 (purge presence records older than 30 min)
-# TODO Phase 4 — Add presence TTL cleanup job here.
 # The presence table tracks "watching right now" state (user_id, anime_id, episode, updated_at).
 # Without cleanup, presence records for users who closed the tab accumulate as ghost viewers.
 # Fix: scheduled job deletes records where updated_at < now() - interval '30 minutes'.
@@ -74,7 +74,6 @@ async def aggregate_vibe_tags():
         await db.commit()
     logger.info(f"Vibe tag aggregation complete. {len(anime_tag_map)} anime updated.")
 
-
 def start_scheduler():
     scheduler.add_job(
         aggregate_vibe_tags,
@@ -83,5 +82,12 @@ def start_scheduler():
         id="aggregate_vibe_tags",
         replace_existing=True,
     )
+    scheduler.add_job(
+        run_llm_suggest,
+        trigger="interval",
+        hours=24,  # Once per day — API cost consideration
+        id="llm_suggest",
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("Scheduler started. Vibe tag aggregation runs every 4 hours.")
+    logger.info("Scheduler started. Vibe tag aggregation every 4hrs, LLM suggestions every 24hrs.")
