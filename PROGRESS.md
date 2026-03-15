@@ -76,8 +76,8 @@
 
 **Architecture reminders:**
 - compute_overall lives in the router, not the model
-- All score axes nullable — never required
-- Mood tags are Phase 2 — don't build them yet
+- All score axes nullable
+- Mood tags are Phase 2
 
 ## Session 4 — Mar 1, 2026
 
@@ -298,3 +298,80 @@
 - Next.js frontend scaffolding (/vibe as default authenticated route)
 - Deploy to Vercel + Railway + Supabase after frontend is scaffolded — soft launch
 - Phase 2 will be fully complete after deploy
+
+## Session 7 — Mar 9-13, 2026
+
+**Completed:**
+- LLM auto-suggest prompt fix noted — Claude thinking out loud before JSON breaks parser.
+  Fix when convenient: add "Output the JSON array immediately with no preamble, no reasoning,
+  no 'let me reconsider'. Just the array." to end of prompt in llm_suggest.py
+- Next.js frontend scaffolded at ~/arcanum/frontend
+  - Next.js 16.1.6 with Turbopack, TypeScript, Tailwind, App Router
+  - Fonts: Syne (body/UI) + DM Serif Display (headings) via next/font/google
+  - globals.css: dark theme CSS variables, scroll-row class, tag-pill class, page-container class
+  - layout.tsx: font variables, metadata ("Your Anime Taste Fingerprint")
+  - next.config.ts: AniList image domains (cdn.anilist.co, s4.anilist.co)
+  - .env.local: API_URL=http://localhost:8000
+- src/lib/types.ts: TypeScript interfaces matching FastAPI response schemas
+  (TagResponse, AnimeCard, VibeCluster)
+- /vibe page built and polished (src/app/vibe/page.tsx)
+  - Server component, fetches from process.env.API_URL (not hardcoded localhost)
+  - revalidate: 14400 (4hr cache matches aggregation job schedule)
+  - CLUSTER_SUBTITLES map — editorial one-liners per cluster
+    ("For when sleep isn't coming anyway", "You asked for this", "You will not be okay")
+  - TODO comment: time-based cluster ordering Phase 4+
+- VibeCluster component (src/components/VibeCluster.tsx)
+  - DM Serif Display headings, cluster subtitles in --text-secondary
+  - Scroll arrows using useRef + scrollBy (440px increments, smooth)
+  - "see all →" link to /vibe/{cluster.id}
+- AnimeCard component (src/components/AnimeCard.tsx)
+  - w-48 h-72 (192×288px) — proper 2:3 anime poster ratio
+  - Tag pills always visible at rest (top 3), glow effect via box-shadow
+  - Score badge top-right, high opacity backdrop
+  - Gradient overlay at bottom of cover art
+  - flex-col + flex-1 on footer for consistent row heights
+  - items-stretch on scroll row for even card heights
+- Ran LLM suggest on 150 anime + aggregation job
+  - ~400 suggestions inserted across batches
+  - Parse failures noted (Claude thinking out loud) — prompt fix deferred
+  - All clusters populated with real data after aggregation
+
+**Decisions made:**
+- Tags visible at rest on cards (not hidden behind hover) — Opus pushed back, correct
+- /vibe is default authenticated route (post-login landing page)
+- process.env.API_URL for server components (not NEXT_PUBLIC_ — keeps backend URL out of client bundle)
+- Japanese immersion tags (beginner friendly Japanese, clear dialogue, JLPT N4 level etc.)
+  deferred to post-launch — good niche differentiator for immersion learning community,
+  confirm audience exists before adding
+- Time-based cluster ordering deferred to Phase 4 — TODO comment in vibe/page.tsx
+
+**Pre-deploy checklist (complete before pushing to Vercel/Railway/Supabase):**
+- [ ] Set API_URL in Vercel env vars → Railway FastAPI URL
+- [ ] Add production Vercel domain to FastAPI CORS allow_origins in main.py
+- [ ] Set DATABASE_URL in Railway → Supabase production Postgres
+- [ ] Set ANTHROPIC_API_KEY in Railway env vars
+- [ ] Run Alembic migrations against production Supabase DB
+- [ ] Run seed scripts against production (anime + mood tags + system user)
+- [ ] grep -r "localhost" ~/arcanum/ to catch any hardcoded URLs
+
+**Lessons learned:**
+- Hard refresh (Ctrl+Shift+R) required after backend data changes — Next.js caches fetch responses
+- next/image requires remotePatterns config for external domains or images fail silently
+- items-stretch on flex row + flex-col + flex-1 on card = consistent row heights
+- Frontend polish is open-ended — timebox it, get to "screenshot worthy" then move on
+
+**/vibe page status: COMPLETE — screenshot worthy**
+
+**Next session starts with:**
+- /anime/[id] detail page — cover art large, synopsis, tags confirmed/suggested split, score
+- /profile/[username] page — stats, genre breakdown, score distribution
+- /import page — MAL file upload
+- Login/register pages
+- Then deploy using pre-deploy checklist above
+- Phase 2 fully complete after deploy
+
+**Architecture reminders:**
+- Next.js is rendering layer only — all data from FastAPI, no Server Actions for mutations
+- Server components fetch using process.env.API_URL
+- Client components only when interactive (tag voting, typeahead)
+- CORS in main.py must include production Vercel domain before deploy
