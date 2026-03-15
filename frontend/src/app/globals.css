@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0c0b10;
+  --bg-secondary: #13121a;
+  --bg-card: #1a1825;
+  --accent-purple: #7c3aed;
+  --accent-indigo: #4f46e5;
+  --accent-glow: rgba(124, 58, 237, 0.15);
+  --text-primary: #f0eeff;
+  --text-secondary: #a89ec8;
+  --text-muted: #4a4560;
+  --pill-bg: rgba(124, 58, 237, 0.15);
+  --pill-border: rgba(124, 58, 237, 0.3);
+  --pill-text: #c4b5fd;
+  --font-syne: 'Syne', sans-serif;
+  --font-dm-serif: 'DM Serif Display', serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--bg-primary);
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+}
+
+/* Horizontal scroll rows — hide scrollbar but keep scrollable */
+.scroll-row {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Page container */
+.page-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+/* Subtle top gradient for depth */
+.page-gradient {
+  background: linear-gradient(
+    180deg,
+    #141220 0px,
+    var(--bg-primary) 300px
+  );
+  min-height: 100vh;
+}
+
+/* Tag pills */
+.tag-pill {
+  font-size: 0.7rem;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-border);
+  color: var(--pill-text);
+  box-shadow: 0 0 8px var(--accent-glow);
+  white-space: nowrap;
+}
