@@ -90,7 +90,7 @@ async def get_anime_for_slugs(
         .join(UserAnimeMoodTag, UserAnimeMoodTag.anime_id == Anime.id)
         .where(UserAnimeMoodTag.mood_tag_id.in_(tag_ids))
         .group_by(Anime.id)
-        .order_by(func.count(UserAnimeMoodTag.user_id).desc())
+        .order_by(func.count(UserAnimeMoodTag.user_id).desc(), Anime.average_score.desc().nullslast())
         .limit(limit)
     )
     rows = anime_result.all()

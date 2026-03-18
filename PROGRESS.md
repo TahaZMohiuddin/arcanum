@@ -375,3 +375,111 @@
 - Server components fetch using process.env.API_URL
 - Client components only when interactive (tag voting, typeahead)
 - CORS in main.py must include production Vercel domain before deploy
+
+## Session 8 — Mar 13-18, 2026
+
+**Completed:**
+- /anime/[id] detail page
+  - Server component, fetches anime + tags in parallel (Promise.all)
+  - TagSection client component — confirmed/suggested split, optimistic UI on vote
+  - dangerouslySetInnerHTML replaced with plain text rendering (security)
+  - revalidate: 3600 for anime data, revalidate: 0 for tags (always fresh)
+- /profile/[username] page
+  - StatsCharts client component — hand-built CSS charts, no library
+  - Score distribution: colored bars per score (red→green→purple), count labels
+  - Genre breakdown: 8 colors cycling, horizontal bars
+  - Status breakdown: stacked bar with semantic colors
+  - "Taste Fingerprint" heading
+  - TODO Phase 3+: "Your Vibe" identity section, top-rated anime row, mood donut chart
+- Login/register pages
+  - Auto-login after register
+  - OAuth2PasswordRequestForm — sends x-www-form-urlencoded not JSON
+  - Password minimum 8 characters (backend Pydantic validator)
+- src/lib/auth.ts — localStorage token management
+  - TODO Phase 3: migrate to httpOnly cookies (requires api.myarcanum.org custom domain)
+- NavBar component
+  - Sticky, backdrop blur, auth-aware
+  - "Arcanum" in pill-text purple (brand mark)
+  - "Discover", username in pill-text, "Import", "Disappear"
+  - removeUsername called on logout (fixes broken state bug)
+  - TODO Phase 3+: logo icon/motif (commissioned artist)
+  - TODO Phase 4+: notification dot for social features
+- /import page — MAL + AniList toggle
+  - AniList default (target audience skews AniList)
+  - AniList: username-based API fetch, no file needed, direct anilist_id matching
+  - MAL: XML file upload, 5MB client-side limit, defusedxml on backend
+  - try-catch on all fetches, file size validation, network error handling
+  - Result: imported/skipped/unmatched counts, unmatched titles as pills
+  - "Start browsing →" and "View your list →" CTAs
+- AniList import backend (POST /import/anilist)
+  - GraphQL MediaListCollection query with pagination
+  - Same bulk-fetch pattern as MAL import
+  - Direct anilist_id matching — no ID mapping problem
+  - REPEATING status → watching
+- /vibe/[slug] drill-down page
+  - Grid layout using existing AnimeCard component
+  - Cluster subtitle carries over from browse page
+  - "← All vibes" breadcrumb navigation
+  - notFound() on invalid slugs
+  - revalidate: 14400 matches aggregation schedule
+  - TODO Phase 3+: sort options, pagination, related clusters sidebar
+
+**Bug fixed:**
+- computed_overall Float migration caused KeyError in score_distribution dict
+  Fix: str(int(round(score))) before dict lookup
+  Lesson: grep codebase for all column consumers when changing column type
+
+  **Nav copy refined:**
+- Browse → Discover
+- Sign in → Return  
+- Get started → Enter
+- Sign out → Disappear
+
+**UI/Branding TODOs (discussed, not yet implemented):**
+- Tag pills on AnimeCard should link to /vibe/{tag-slug} for drill-down navigation
+- Profile page: genre pill spacing from synopsis needs breathing room on detail page
+- Suggested tags section on detail page needs more vertical spacing from synopsis
+- Cluster subtitles should appear on drill-down page (done) — verify on individual tag slugs
+- Time-based cluster ordering — Late Night Watch surfaces at top during late hours, Watch With Friends on Fridays, etc (Phase 4+)
+- Japanese immersion tags — "N4 Japanese", "beginner friendly" etc. (post-launch tag batch)
+- Guest browsing — vibe page accessible without login, conversion at save/tag moment
+- Power follow — weight multiplier on follows table for trusted taste sources (Phase 4+)
+- Tag pills as links throughout the app for consistent drill-down navigation
+- Scroll arrows only functional when cluster has more anime than viewport width — not a bug
+- next.config.ts image domains — cdn.anilist.co and s4.anilist.co configured ✅
+
+**Decisions made:**
+- localStorage for auth at launch — httpOnly cookies deferred to Phase 3
+  (cross-domain Vercel/Railway cookie issue, zero users at launch)
+- AniList import as username fetch not file upload — simpler, no export needed
+- AniList default on import page — target audience skews AniList
+- [id] is Next.js dynamic route syntax — matches any value, passes as param
+- params is a Promise in Next.js 16 — always await before accessing properties
+- Hand-built CSS charts over Recharts/Chart.js — no dependency, full style control
+- Syne font for body, DM Serif Display for headings — replaces default Geist to avoid Vercel template look
+- Typographic logo at launch, commission human artist after traction
+- AniList API terms allow complementary services with sustained integration — AniList OAuth login planned for Phase 4+ to strengthen positioning
+- Vibe browse tiebreaker: when tag votes are tied, sort by Anime.average_score.desc() — higher rated anime surface first among equally-voted entries
+
+**Security hardening done:**
+- Password minimum 8 chars (Pydantic validator)
+- defusedxml for MAL XML parsing (already done Phase 1)
+- Login endpoint uses form data not JSON (OAuth2PasswordRequestForm)
+- CORS via environment variable (not hardcoded)
+
+**Post-launch security TODO (in DEPLOY.md):**
+- httpOnly cookies migration (Phase 3)
+- Rate limiting on /auth/register (before public launch)
+
+**Phase 2 frontend status: COMPLETE**
+
+**Next session: DEPLOY**
+Follow pre-deploy checklist in DEPLOY.md:
+1. grep -r "localhost" ~/arcanum/
+2. Set up Supabase project
+3. Run migrations against Supabase
+4. Deploy backend to Railway
+5. Deploy frontend to Vercel
+6. Set all environment variables
+7. Run seed scripts against production
+8. Test end to end

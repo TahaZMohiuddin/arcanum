@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Syne } from "next/font/google";
 import { DM_Serif_Display } from "next/font/google";
 import "./globals.css";
+import NavBar from "@/components/NavBar";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -20,14 +21,13 @@ export const metadata: Metadata = {
   description: "Track, tag, and discover anime through community vibe tags and taste matching.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${syne.variable} ${dmSerif.variable}`}>
-      <body style={{ fontFamily: "var(--font-syne), sans-serif" }}>{children}</body>
+      <body style={{ fontFamily: "var(--font-syne), sans-serif" }}>
+        <NavBar />
+        {children}
+      </body>
     </html>
   );
 }

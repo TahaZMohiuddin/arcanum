@@ -54,8 +54,10 @@ async def get_user_profile(
     # Score distribution (1-10)
     score_distribution = {str(i): 0 for i in range(1, 11)}
     for score in scores:
-        if 1 <= score <= 10:
-            score_distribution[str(score)] += 1
+        if score is not None:
+            rounded = str(int(round(score)))
+        if rounded in score_distribution:
+            score_distribution[rounded] += 1
 
     return {
         "user_id": user.id,

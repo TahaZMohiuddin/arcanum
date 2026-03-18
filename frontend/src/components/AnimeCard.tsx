@@ -62,6 +62,7 @@ export default function AnimeCard({ anime }: { anime: AnimeCardType }) {
             {displayTitle}
           </p>
 
+          {/* TODO: Wrap tag pills in <Link href={`/vibe/${slugify(tag)}`}> for tag drill-down navigation */}
           {/* Tag pills — hero element, always visible */}
           {anime.top_tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
