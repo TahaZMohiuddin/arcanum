@@ -6,8 +6,7 @@ import os
 import sys
 from dotenv import load_dotenv
 
-load_dotenv()
-
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'), override=True)
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.database import Base
@@ -15,7 +14,10 @@ from app import models
 
 config = context.config
 
-config.set_main_option("sqlalchemy.url", os.getenv("SYNC_DATABASE_URL"))
+SYNC_URL = os.getenv("SYNC_DATABASE_URL", "")
+if SYNC_URL.startswith("postgresql+asyncpg://"):
+    SYNC_URL = SYNC_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+config.set_main_option("sqlalchemy.url", SYNC_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

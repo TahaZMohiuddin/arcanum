@@ -1,19 +1,13 @@
 import asyncio
 import httpx
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import select
 import os
 import sys
-from dotenv import load_dotenv
 
-load_dotenv()
-
+# Order matters. sys.path.insert must come before any app.* imports, otherwise Python can't find the app module
 sys.path.insert(0, os.path.dirname(__file__))
+from app.database import AsyncSessionLocal
 from app.models import Anime
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 ANILIST_QUERY = """
 query ($page: Int, $perPage: Int) {

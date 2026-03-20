@@ -483,3 +483,118 @@ Follow pre-deploy checklist in DEPLOY.md:
 6. Set all environment variables
 7. Run seed scripts against production
 8. Test end to end
+
+## Deployment Fixes — Session 9 (Mar 19-20, 2026)
+
+**Context:** First production deployment to Supabase. Took multiple sessions to resolve.
+Documenting every fix so future deployments take minutes not hours.
+
+### Fix 1: load_dotenv() unreliable without explicit path
+Problem: bare `load_dotenv()` didn't reliably find `.env` when scripts ran from
+different working directories. Shell `export` couldn't override it.
+Fix in `database.py` and `alembic/env.py`:
+```python
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'), override=True)
+```
+Key lesson: always use explicit path + override=True with load_dotenv.
+
+### Fix 2: Supabase strips +asyncpg from connection string
+Problem: Supabase returns `postgresql://` — dotenv was stripping the `+asyncpg`
+so SQLAlchemy loaded psycopg2 (sync) instead of asyncpg (async).
+Fix in `database.py`:
+```python
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+```
+Key lesson: never rely on .env preserving +asyncpg. Always convert programmatically.
+This is a known Supabase + FastAPI issue.
+
+### Fix 3: Seed scripts had their own engine creation
+Problem: all three seed scripts duplicated database connection logic.
+When Fix 1/2 were needed, we had to fix 4 files instead of 1.
+Fix: removed local engine creation from seed_anime.py, seed_mood_tags.py,
+seed_system_user.py. All now import from app.database:
+```python
+sys.path.insert(0, os.path.dirname(__file__))
+from app.database import AsyncSessionLocal
+```
+Key lesson: single source of truth for DB connections. Never create engines
+in scripts — always import from app.database.
+
+### Fix 4: Alembic uses SYNC_DATABASE_URL, not DATABASE_URL
+Problem: Alembic env.py reads SYNC_DATABASE_URL (sync psycopg2) while FastAPI
+reads DATABASE_URL (async asyncpg). Hours wasted checking wrong variable.
+Key lesson: two separate env vars, two separate drivers.
+- DATABASE_URL → FastAPI (postgresql+asyncpg://)
+- SYNC_DATABASE_URL → Alembic (postgresql://)
+Always check which var a tool actually reads before debugging.
+
+### Fix 5: Supabase auth.users conflicts with CREATE TABLE users
+Problem: Supabase has built-in auth schema with its own users table.
+Postgres search_path included auth schema, causing DuplicateTable errors.
+Fix — run once in Supabase SQL Editor:
+```sql
+ALTER ROLE postgres SET search_path TO public;
+```
+Key lesson: always set search_path to public for Supabase app connections.
+URL-based ?options=-csearch_path%3Dpublic doesn't work with Alembic
+(configparser chokes on % character).
+
+### Fix 6: Broken Alembic migration — add_mal_id recreated all tables
+Problem: migration a0c1890c4c6d_add_mal_id_to_anime_table.py was generated
+against an empty database. Instead of adding mal_id column, it had CREATE TABLE
+for users, anime, and user_anime_relationships — duplicating previous migrations.
+Fix: replaced upgrade() with:
+```python
+def upgrade() -> None:
+    op.add_column('anime', sa.Column('mal_id', sa.Integer(), nullable=True))
+    op.create_index(op.f('ix_anime_mal_id'), 'anime', ['mal_id'], unique=False)
+```
+Key lesson: ALWAYS read every auto-generated migration before running it.
+alembic revision --autogenerate diffs models against DB state — if DB was
+empty when generated, migration captures full schema instead of diff.
+Never trust autogenerate blindly.
+
+### Deployment command sequence that works:
+```sql
+-- Run in Supabase SQL Editor first:
+ALTER ROLE postgres SET search_path TO public;
+DROP TABLE IF EXISTS user_anime_relationships CASCADE;
+DROP TABLE IF EXISTS anime CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS alembic_version CASCADE;
+DROP TYPE IF EXISTS watchstatus CASCADE;
+```
+```bash
+# Then from terminal with Supabase URL in .env:
+alembic upgrade head
+python seed_anime.py
+python seed_mood_tags.py
+python seed_system_user.py
+```
+
+### Files modified for deployment:
+- backend/app/database.py — explicit dotenv path, async driver conversion
+- backend/alembic/env.py — explicit dotenv path, SYNC_DATABASE_URL
+- backend/seed_anime.py — imports AsyncSessionLocal from database.py
+- backend/seed_mood_tags.py — imports AsyncSessionLocal from database.py
+- backend/seed_system_user.py — imports AsyncSessionLocal from database.py
+- backend/alembic/versions/a0c1890c4c6d — fixed to add_column not create_table
+- backend/.env — SYNC_DATABASE_URL added, both URLs point to Supabase during deploy
+
+### On hardcoding .env for deployment:
+The .env swap is a one-time local pain. Railway injects environment variables
+directly into the running process — you never touch .env for production.
+For future Supabase reseeds, swap .env temporarily, run seeds, swap back.
+Consider writing a deploy.sh script that automates this swap.
+
+### Additional lesson not in Opus summary:
+- alembic stamp base then upgrade head is WRONG if tables partially exist
+  Use stamp {revision_hash} to tell Alembic "DB is at this state" without
+  running migrations. Only use stamp base + upgrade head on truly empty DB.
+- Supabase Table Editor doesn't always show tables immediately after creation —
+  use SQL Editor SELECT tablename FROM pg_tables WHERE schemaname='public'
+  to verify actual DB state. Never trust the Table Editor UI alone.
+- Database reset in Supabase does NOT always clear everything — auth schema
+  tables survive. Always run explicit DROP TABLE statements after reset.

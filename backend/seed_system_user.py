@@ -1,15 +1,11 @@
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import select
 from app.models import User
-import os, uuid
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+import sys
+import os
+import uuid
+sys.path.insert(0, os.path.dirname(__file__))
+from app.database import AsyncSessionLocal
 
 SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 

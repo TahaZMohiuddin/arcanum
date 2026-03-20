@@ -1,16 +1,11 @@
 import asyncio
 import re
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import select
 from app.models import MoodTag
+import sys
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+sys.path.insert(0, os.path.dirname(__file__))
+from app.database import AsyncSessionLocal
 
 def make_slug(label: str) -> str:
     """Convert label to URL-safe slug. '2am watch' → '2am-watch'"""
