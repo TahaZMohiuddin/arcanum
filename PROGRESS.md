@@ -598,3 +598,14 @@ Consider writing a deploy.sh script that automates this swap.
   to verify actual DB state. Never trust the Table Editor UI alone.
 - Database reset in Supabase does NOT always clear everything — auth schema
   tables survive. Always run explicit DROP TABLE statements after reset.
+
+  ### Key principle established:
+Single source of truth for database connections. app/database.py is the ONLY
+place that creates engines or session factories. All scripts, all routers, all
+jobs import from there. This prevented Fix 2 from being a 4-file hunt.
+```
+
+### SSL note:
+Supabase migrations worked without ?ssl=require from local machine.
+If Railway deployment fails with connection error, add ?ssl=require to both
+DATABASE_URL and SYNC_DATABASE_URL in Railway environment variables.
