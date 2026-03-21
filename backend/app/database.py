@@ -3,7 +3,12 @@ from sqlalchemy.orm import DeclarativeBase
 from dotenv import load_dotenv
 import os
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'), override=True)
+# Only load .env if it exists — in production (Railway), env vars are injected directly.
+# override=False ensures Railway's injected vars are never overwritten by a local .env file.
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path, override=False)
+
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 # Supabase and most Postgres providers return postgresql:// — ensure async driver is always used
