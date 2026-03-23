@@ -99,7 +99,9 @@ Return between 2 and 6 tags. Only return the JSON array."""
     raw = data["content"][0]["text"].strip()
 
     try:
-        suggested = json.loads(raw)
+        # Strip markdown code fences if LLM wraps response
+        clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        suggested = json.loads(clean)
         approved_set = set(all_tags)
         return [tag for tag in suggested if tag in approved_set]
     except (json.JSONDecodeError, KeyError):

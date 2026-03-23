@@ -589,7 +589,7 @@ directly into the running process — you never touch .env for production.
 For future Supabase reseeds, swap .env temporarily, run seeds, swap back.
 Consider writing a deploy.sh script that automates this swap.
 
-### Additional lesson not in Opus summary:
+### Additional lesson:
 - alembic stamp base then upgrade head is WRONG if tables partially exist
   Use stamp {revision_hash} to tell Alembic "DB is at this state" without
   running migrations. Only use stamp base + upgrade head on truly empty DB.
@@ -605,7 +605,41 @@ place that creates engines or session factories. All scripts, all routers, all
 jobs import from there. This prevented Fix 2 from being a 4-file hunt.
 ```
 
+## Session 9 Continued — Mar 22-23, 2026
+
 ### SSL note:
 Supabase migrations worked without ?ssl=require from local machine.
 If Railway deployment fails with connection error, add ?ssl=require to both
 DATABASE_URL and SYNC_DATABASE_URL in Railway environment variables.
+
+### Vercel Deploy Fix — root page.tsx had hardcoded localhost
+
+**Problem:** Vercel build failed with `ECONNREFUSED 127.0.0.1:8000`.
+Root cause: `src/app/page.tsx` was an old copy of the vibe page from before
+we created `src/app/vibe/page.tsx`. It had hardcoded `http://localhost:8000`
+instead of `process.env.API_URL`. Vercel's build server can't reach localhost.
+
+**Fix:** Replaced root `page.tsx` with a simple redirect:
+```tsx
+import { redirect } from "next/navigation";
+export default function Home() { redirect("/vibe"); }
+```
+
+**Second issue:** Vercel env var was typed as `NEXT_PUBLIC_API` instead of
+`NEXT_PUBLIC_API_URL` — missing `_URL` suffix. Would have broken all
+client-side API calls silently.
+
+**Lesson:** After moving a page to a subdirectory, immediately update or
+replace the old root file. Don't leave stale pages with hardcoded URLs.
+Run `grep -r "localhost:8000" ~/arcanum/frontend/` before every deploy
+to catch hardcoded URLs. The pre-deploy checklist already said this —
+we didn't run it.
+
+### Production cron jobs — run separately, never chained:
+1. Aggregation (every 4hrs via Railway cron):
+   python -c "import asyncio; from app.scheduler import aggregate_vibe_tags; asyncio.run(aggregate_vibe_tags())"
+
+2. LLM suggest (manual, run when new anime added or monthly):
+   python -c "import asyncio; from app.llm_suggest import run_llm_suggest; asyncio.run(run_llm_suggest())"
+
+Run as separate commands. Never chain asyncio.run() calls back to back.
