@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import httpx
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.database import AsyncSessionLocal
@@ -60,11 +61,13 @@ async def get_anime_needing_suggestions(db: AsyncSession) -> list[Anime]:
 async def suggest_tags_for_anime(
     anime: Anime,
     all_tags: list[str],
-    client: httpx.AsyncClient
+    client: httpx.AsyncClient,
+    max_retries: int = 2
 ) -> list[str]:
     """Call Claude API to suggest tags for a single anime.
     Returns list of tag labels from the approved vocabulary only.
     LLM picks from existing tags — it does not create new ones.
+    Retries up to max_retries times with exponential backoff on network failure.
     """
     tag_list = "\n".join(f"- {tag}" for tag in all_tags)
     prompt = f"""You are tagging anime for a community database. Given this anime's details, select which tags from the approved list apply. Return ONLY a JSON array of tag labels. No explanation, no new tags — only pick from the list.
@@ -79,29 +82,51 @@ Approved tags (pick only from these):
 
 Return format: ["tag one", "tag two", "tag three"]
 Return between 2 and 6 tags. Only return the JSON array."""
+    
+    # try up to 3 times total (1 initial + 2 retries) before giving up
+    for attempt in range(max_retries + 1):
+        try:
+            response = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": ANTHROPIC_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-haiku-4-5-20251001",
+                    "max_tokens": 200,
+                    "messages": [{"role": "user", "content": prompt}]
+                },
+                timeout=30.0
+            )
+            response.raise_for_status()
+            break  # Success — exit retry loop
+        except (httpx.HTTPError, httpx.ReadError) as e:
+            if attempt == max_retries:
+                logger.warning(f"API call failed for {anime.title} after {max_retries + 1} attempts: {e}")
+                return []
+            wait = 2 ** attempt  # 1s, then 2s
+            logger.warning(f"API call failed for {anime.title} (attempt {attempt + 1}), retrying in {wait}s: {e}")
+            await asyncio.sleep(wait)
 
-    response = await client.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        json={
-            "model": "claude-haiku-4-5-20251001",
-            "max_tokens": 200,
-            "messages": [{"role": "user", "content": prompt}]
-        },
-        timeout=30.0
-    )
-    response.raise_for_status()
-    data = response.json()
-    raw = data["content"][0]["text"].strip()
+    # Parse response — separate try/except from network errors
+    try:
+        data = response.json()
+        raw = data["content"][0]["text"].strip()
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.warning(f"Invalid JSON response for {anime.title}: {e}")
+        return []
 
+    # Parse LLM output — handles backtick wrapping and thinking out loud
     try:
         # Strip markdown code fences if LLM wraps response
         clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        suggested = json.loads(clean)
+        match = re.search(r'\[.*?\]', clean, re.DOTALL)
+        if match:
+            suggested = json.loads(match.group())
+        else:
+            suggested = json.loads(clean)
         approved_set = set(all_tags)
         return [tag for tag in suggested if tag in approved_set]
     except (json.JSONDecodeError, KeyError):
