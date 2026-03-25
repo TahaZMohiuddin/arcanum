@@ -29,28 +29,39 @@ async def get_all_tag_labels(db: AsyncSession) -> list[str]:
     )
     return result.scalars().all()
 
-
 async def get_anime_needing_suggestions(db: AsyncSession) -> list[Anime]:
-    """Fetch anime with fewer than MIN_CONFIRMED_TAGS real community votes.
-    Excludes system user votes from the count — LLM suggestions don't count toward threshold.
+    """Fetch anime with fewer than MIN_CONFIRMED_TAGS real community votes
+    AND no existing system user tags.
+    Excludes anime already tagged by system user — prevents re-processing same anime every run.
     Ordered by average_score desc — suggest for popular anime first.
     """
+    # Subquery: real community vote counts (excludes system user)
     confirmed_counts = (
         select(
             UserAnimeMoodTag.anime_id,
             func.count(UserAnimeMoodTag.user_id).label("vote_count")
         )
-        .where(UserAnimeMoodTag.user_id != SYSTEM_USER_ID)  # Real votes only
+        .where(UserAnimeMoodTag.user_id != SYSTEM_USER_ID)
         .group_by(UserAnimeMoodTag.anime_id)
+        .subquery()
+    )
+
+    # Subquery: anime already tagged by system user
+    system_tagged = (
+        select(UserAnimeMoodTag.anime_id)
+        .where(UserAnimeMoodTag.user_id == SYSTEM_USER_ID)
+        .distinct()
         .subquery()
     )
 
     result = await db.execute(
         select(Anime)
         .outerjoin(confirmed_counts, confirmed_counts.c.anime_id == Anime.id)
+        .outerjoin(system_tagged, system_tagged.c.anime_id == Anime.id)
         .where(
-            (confirmed_counts.c.vote_count < MIN_CONFIRMED_TAGS) |
-            (confirmed_counts.c.vote_count == None)
+            ((confirmed_counts.c.vote_count < MIN_CONFIRMED_TAGS) |
+             (confirmed_counts.c.vote_count == None)) &
+            (system_tagged.c.anime_id == None)  # Not yet tagged by system
         )
         .order_by(Anime.average_score.desc().nullslast())
         .limit(MAX_ANIME_PER_RUN)

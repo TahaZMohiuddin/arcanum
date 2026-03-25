@@ -1,12 +1,36 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from app.database import get_db
 from app.models import Anime, UserAnimeRelationship
-from app.schemas import AnimeResponse
+from app.schemas import AnimeResponse, SearchResult
 from uuid import UUID
 
 router = APIRouter(prefix="/anime", tags=["anime"])
+
+@router.get("/search", response_model=list[SearchResult])
+async def search_anime(
+    q: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Simple title search. Returns top 10 matches.
+    # TODO: Replace with pgvector semantic search in Phase 5 — 'something like Mushishi but more melancholy'
+    """
+    if not q or len(q.strip()) < 2:
+        return []
+    
+    search_term = f"%{q.strip()}%"
+    result = await db.execute(
+        select(Anime)
+        .where(
+            or_(
+                Anime.title.ilike(search_term),
+                Anime.title_english.ilike(search_term)
+            )
+        )
+        .limit(10)
+    )
+    return result.scalars().all()
 
 @router.get("/{anime_id}", response_model=AnimeResponse)
 async def get_anime(

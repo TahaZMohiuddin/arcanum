@@ -146,7 +146,7 @@ async def get_vibe_browse(
     # If a cluster has zero tagged anime (nobody's voted), skip it entirely.
     for cluster in VIBE_CLUSTERS:
         anime = await get_anime_for_slugs(
-            cluster["slugs"], limit=5, db=db, slug_to_id=slug_to_id
+            cluster["slugs"], limit=8, db=db, slug_to_id=slug_to_id
         )
         if anime:
             clusters.append(VibeCluster(

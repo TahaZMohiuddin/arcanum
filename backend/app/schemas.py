@@ -153,3 +153,10 @@ class UserProfileResponse(BaseModel):
     stats: UserStats
     genre_breakdown: list[GenreCount]
     score_distribution: dict[str, int]
+
+class SearchResult(BaseModel):
+    id: UUID
+    title: str
+    title_english: Optional[str]
+    cover_url: Optional[str]
+    average_score: Optional[float]

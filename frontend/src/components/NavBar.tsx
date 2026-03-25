@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getToken, getUsername, removeToken, removeUsername } from "@/lib/auth";
+import SearchBar from "./SearchBar";
+
 
 // TODO Phase 3+: Add logo icon/motif left of "Arcanum" text (commissioned artist)
 // TODO Phase 4+: Add notification indicator dot on username for social features (friend requests, taste matches)
@@ -45,6 +47,9 @@ export default function NavBar() {
         >
           Arcanum
         </Link>
+
+        {/* Search */}
+          <SearchBar />
 
         {/* Nav links */}
         <div className="flex items-center gap-6">
