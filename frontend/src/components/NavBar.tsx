@@ -45,7 +45,7 @@ export default function NavBar() {
             color: "var(--pill-text)",
           }}
         >
-          Arcanum
+          MyArcanum
         </Link>
 
         {/* Search */}
