@@ -108,3 +108,15 @@ class UserAnimeMoodTag(Base):
     anime_id = Column(UUID(as_uuid=True), ForeignKey("anime.id", ondelete="CASCADE"), primary_key=True, index=True)
     mood_tag_id = Column(UUID(as_uuid=True), ForeignKey("mood_tags.id", ondelete="CASCADE"), primary_key=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+class Follow(Base):
+    __tablename__ = "follows"
+
+    # Simple social graph — no approval flow, just follow/unfollow.
+    # Follows = Circle
+    # follower_id follows following_id.
+    # Composite PK enforces uniqueness — no separate UniqueConstraint needed.
+    # Phase 4+: add weight column for "power follow" multiplier on taste scores.
+    follower_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    following_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
