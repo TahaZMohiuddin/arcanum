@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, anime_list, mal_import, anime, users, tags, mood_tags, vibe
+from app.routers import auth, anime_list, mal_import, anime, users, tags, mood_tags, vibe, follows
 from contextlib import asynccontextmanager
 from app.scheduler import start_scheduler, scheduler
 from slowapi import _rate_limit_exceeded_handler
@@ -40,6 +40,7 @@ app.include_router(users.router)
 app.include_router(tags.router)
 app.include_router(mood_tags.router)
 app.include_router(vibe.router)
+app.include_router(follows.router)
 
 @app.get("/")
 async def root():
