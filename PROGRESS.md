@@ -828,3 +828,21 @@ Confirming: It's 8
   (Phase 6+ if anime reaches 2000+ users)
 - Table rename: user_anime_relationships → user_media_relationships
   (one Alembic migration when adding second media type)
+
+  ### CI Fix — pgvector extension missing in test environment (Apr 2026)
+Problem: CI tests failed after adding taste_vector Vector(128) to User model.
+conftest.py used Base.metadata.create_all() but pgvector extension wasn't
+enabled in the CI Postgres instance — CREATE TABLE users failed on the
+vector column.
+
+Fix: updated conftest.py to enable extension before create_all():
+```python
+with engine.connect() as conn:
+    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    conn.commit()
+Base.metadata.create_all(bind=engine)
+```
+
+Lesson: any new Postgres extension used in models requires explicit
+CREATE EXTENSION in conftest.py. pgvector, PostGIS, etc. — all need
+this treatment before create_all() will succeed.
