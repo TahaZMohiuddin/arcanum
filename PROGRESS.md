@@ -643,3 +643,188 @@ we didn't run it.
    python -c "import asyncio; from app.llm_suggest import run_llm_suggest; asyncio.run(run_llm_suggest())"
 
 Run as separate commands. Never chain asyncio.run() calls back to back.
+
+## Session 9 — Mar 19-26, 2026
+
+### Deployment (Mar 19-22)
+Full deployment fixes documented above in "Deployment Fixes — Session 9."
+
+### Post-deployment fixes (Mar 22-23)
+- CORS_ORIGINS in Railway only listed arcanum-tan.vercel.app, not myarcanum.org
+  Client components (search bar, tag voting, import, login) broke on custom domain
+  Server components work without CORS — they fetch server-side from Vercel's servers
+  Fix: add all frontend domains to Railway CORS_ORIGINS:
+  https://myarcanum.org,https://www.myarcanum.org,https://arcanum-tan.vercel.app,http://localhost:3000
+  Lesson: update CORS_ORIGINS immediately when adding any new frontend domain
+
+- Railway CLI link doesn't persist between sessions
+  Fix: always run railway commands from ~/arcanum/backend/
+  npx @railway/cli link (select arcanum project + production environment)
+  Creates .railway file in that directory — persists going forward
+  
+- alembic/env.py had override=True — same bug as database.py
+  Railway's SYNC_DATABASE_URL was being overwritten by empty local values
+  Fix: only load dotenv if file exists, override=False
+
+- Production migration workflow (correct going forward):
+  1. Write and test migration locally against Docker
+  2. git push (Railway auto-deploys)  
+  3. source venv/bin/activate && npx @railway/cli run alembic upgrade head
+  4. npx @railway/cli run alembic current (verify — empty output = already up to date)
+  Never use \dt to verify production state
+  Never swap .env for migrations — use npx @railway/cli run
+
+### Completed features (Mar 23-26)
+
+**Search:**
+- GET /anime/search?q= — ilike title search across romaji + english, limit 10, min 2 chars
+  Must be defined BEFORE /{anime_id} in router — FastAPI matches routes in order
+  TODO Phase 5: replace with pgvector semantic search
+- SearchBar.tsx — 300ms debounce, outside-click dismiss, expanding input on focus
+  Bug fixed: setOpen(false) before fetch caused dropdown flash on every keystroke
+  Fix: removed setOpen(false) — let old results stay visible while new ones load
+  Lesson: don't close UI elements preemptively during async operations
+
+**LLM suggest fix:**
+- Root cause of 500 anime → only 153 tagged: get_anime_needing_suggestions returned
+  ALL 500 anime every run (system votes don't count toward vote_count threshold)
+  Top 150 by score were same anime every run — already-tagged, slots wasted
+- Fix: added subquery to exclude anime already tagged by system user
+  Each run now processes only fresh untagged anime
+  Run 1: top 150, Run 2: next 150, Run 3: next 150, etc.
+
+**llm_suggest.py bulletproof API call pattern:**
+- Three-layer error handling:
+  1. Network failures: retry loop with exponential backoff (1s, 2s), max 2 retries
+     max_retries=2 is a function parameter with default — configurable without editing body
+  2. Response parsing: separate try/except for response.json() — handles gateway errors
+  3. LLM output parsing: regex fallback extracts first JSON array
+     Handles backtick wrapping and LLM "thinking out loud" before the array
+- import re added at top of file
+- Skipped anime re-queued on next run — get_anime_needing_suggestions is stateless
+
+**Vibe page:**
+- Cluster limit increased from 5 to 8 — scroll arrows now functional with enough content
+  Arrows were "broken" because 5 × 192px cards fit on screen without overflow
+
+**myarcanum.org domain:**
+- Connected to Vercel — primary domain
+- myarcanum.art owned — redirect to .org (not yet configured)
+
+**Phase 3: Social Graph (Mar 26+)**
+
+**Follows table:**
+- Simple social graph — follower_id, following_id, created_at
+- Composite PK enforces uniqueness (no separate UniqueConstraint needed)
+- index=True on following_id for "who follows me" queries
+- ondelete CASCADE — unfollowing on account deletion is automatic
+- Phase 4+: add weight column for power follow multiplier
+- Branding: "Circle" — follow = "Add to Circle", followers = "Circled by"
+- API stays standard (/follow, /unfollow) — branding is frontend labels only
+
+**Follow endpoints (follows.py):**
+- POST /users/{username}/follow — 201, self-follow prevention (400)
+- DELETE /users/{username}/follow — 204
+- GET /users/{username}/circle — circle_count + circled_by_count
+- GET /users/{username}/circle/following — list of users you follow
+- GET /users/{username}/circle/followers — list of users who follow you
+- get_user_by_username() helper DRYs up repeated user lookup across all endpoints
+- UserSummary uses model_config = {"from_attributes": True} (Pydantic v2 style)
+- TODO Phase 3.5: add taste_match: Optional[float] to UserSummary
+
+**Feed endpoint (feed.py):**
+- GET /feed?before={timestamp}&limit=20
+- Cursor pagination on updated_at — fetch N+1 to detect next page
+- Single JOIN: follows → users → user_anime_relationships → anime
+- All activity types returned (completed, watching, dropped, etc.)
+- computed_overall included (nullable)
+- Status enum handled defensively for both raw and object returns
+- No taste_compatibility_cache JOIN yet (Phase 3.5 — table doesn't exist)
+- No mood_tags JOIN yet (Phase 3.5 — add after basic feed works)
+- Flat response shape — refactor to nested when adding taste_match
+- TODO: Add index on UserAnimeRelationship.updated_at before 1000+ users
+- Empty circle → {"items": [], "next_cursor": null}
+  Frontend should show: "Your circle is empty. Discover users to follow."
+
+**Decisions made:**
+- Cursor pagination over offset for feed — offset breaks when new items inserted
+- All activity types in feed — frontend decides styling, not backend
+- Flat FeedEntry now, nested objects in Phase 3.5 when taste_match added
+- No complexity in first version of feed — get it working, add richness later
+- Python configurable defaults pattern: max_retries=2 in function signature
+  makes tunable behavior visible without reading function body
+  Use for timeouts, retry counts, batch sizes, thresholds
+
+**Next session starts with:**
+- Bring taste_vector migration to Opus BEFORE writing code
+- taste_vector: Vector(512) column on users table (pgvector)
+- APScheduler job recomputes from scoring history
+- taste_compatibility_cache table + cosine similarity job
+- Then: taste % on profiles + weighted friend score on anime pages
+- Then: make /vibe public (guest browsing) before r/anime launch
+- Then: launch
+
+**Production state:**
+- myarcanum.org live on Vercel
+- Railway backend: arcanum-production-dd86.up.railway.app
+- Supabase: 500 anime, 65 mood tags, ~500 LLM suggestions, follows table live
+- Railway cron: aggregate_vibe_tags every 4hrs
+
+**Additional decisions made:**
+- Syne font for body, DM Serif Display for headings — replaced Geist to avoid Vercel template default
+- Nav copy: Discover, Return, Enter, Disappear — branding in UI labels, not API endpoints
+- removeUsername() added to logout handler — without it, stale username persists in localStorage after token cleared
+- dangerouslySetInnerHTML removed from anime detail synopsis — replaced with plain text rendering (XSS vector eliminated)
+- AniList import is username-based API fetch, not file upload — queries GraphQL MediaListCollection directly, no export needed
+
+**Security:**
+- slowapi rate limiting: 5/hour on /auth/register, 20/hour on /auth/login — added before deploy
+- Password minimum 8 characters enforced via Pydantic field_validator on UserCreate schema
+- localStorage interview defense: "httpOnly cookies require same-origin. Frontend on myarcanum.org, backend on railway.app — different origins. Fix requires api.myarcanum.org custom domain, planned for Phase 3."
+
+**Additional lessons learned:**
+- When changing column type (Integer→Float), grep entire codebase for all consumers.
+  computed_overall Float migration caused KeyError in score_distribution — dict keys were
+  string integers, Float values didn't match. Fix: str(int(round(score)))
+  Command: grep -r "computed_overall\|score_distribution" ~/arcanum/backend/
+- Two asyncio.run() calls in sequence cause event loop conflicts — DB connections from
+  first loop invalid in second. Run jobs separately or wrap in single async function
+- Railway does NOT support outbound IPv6. Supabase direct connections resolve to IPv6 only.
+  Use Supabase Session Pooler (IPv4 compatible) for all Railway services
+- Don't append ?ssl=require to asyncpg connection strings — asyncpg handles SSL differently,
+  parameter breaks SQLAlchemy URL parser
+- Vercel caches pages based on revalidate setting. After backend data changes, redeploy
+  Vercel to bust cache or wait for natural expiry
+- Server components fetch server-side — CORS doesn't apply.
+  Client components fetch from browser — CORS applies.
+  This is why search bar broke on myarcanum.org but vibe page worked fine
+
+**Correction: cluster limit**
+Verify what's actually in vibe.py — was it changed to 8 or 10?
+```bash
+grep "limit=" ~/arcanum/backend/app/routers/vibe.py
+```
+(venv) taha@fedora:~/arcanum/backend$ grep "limit=" ~/arcanum/backend/app/routers/vibe.py
+            cluster["slugs"], limit=8, db=db, slug_to_id=slug_to_id
+    anime = await get_anime_for_slugs(slugs, limit=50, db=db, slug_to_id=slug_to_id)
+(venv) taha@fedora:~/arcanum/backend$
+Confirming: It's 8
+
+**Future TODOs (documented across all sessions):**
+- Japanese immersion tags: "N4 Japanese", "beginner friendly" etc. (post-launch tag batch)
+- Time-based cluster ordering: Late Night Watch at top during late hours (frontend logic, Phase 4+)
+- Guest browsing: /vibe accessible without login, conversion prompt on save/tag (before r/anime launch)
+- Power follow: weight column on follows table for prioritized recommendations (Phase 4+)
+- Short-form reactions: nullable note column on user_anime_mood_tags (Phase 4+)
+- Series grouping: series_id linking multi-season shows, AniList relations data (Phase 4)
+- Arc-level tracking: sub-ratings for long-running shows like One Piece (Phase 4+ if users request)
+- AniList OAuth: strengthens "complementary service" positioning under API terms (Phase 4+)
+- Seasonal anime sync: APScheduler job pulling new anime from AniList (every 3-4 months)
+- Tag pills as clickable links to /vibe/{slug} throughout the app
+- Profile "Your Vibe" identity section derived from most-applied mood tags
+- Mood tag breakdown donut chart on profiles (like StoryGraph)
+- Commissioned human artist for logo (NO AI art — anime community will notice)
+- Books vertical: separate domain, same codebase, Google Books API, warm color theme
+  (Phase 6+ if anime reaches 2000+ users)
+- Table rename: user_anime_relationships → user_media_relationships
+  (one Alembic migration when adding second media type)
