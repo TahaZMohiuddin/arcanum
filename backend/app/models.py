@@ -4,6 +4,7 @@ from app.database import Base
 import uuid
 from datetime import datetime, timezone
 import enum
+from pgvector.sqlalchemy import Vector
 
 # NOTE: This file uses the legacy Column() style throughout.
 # TODO: Migrate to SQLAlchemy 2.0 Mapped[] style in a future refactor session.
@@ -17,6 +18,11 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     avatar_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
+    # taste_vector: 128-dim taste fingerprint.
+    # Segments: 18 genre dims (weight 0.40) + 5 score axis dims (weight 0.20) + 65 mood tag dims (weight 0.40) + 40 buffer zeros
+    # NULL for users with <5 scored anime — vector meaningless below this threshold.
+    # Recomputed every 24hrs by APScheduler. Phase 3.4 uses <=> cosine distance for compatibility.
+    taste_vector = Column(Vector(128), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class Anime(Base):
